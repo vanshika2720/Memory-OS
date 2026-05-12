@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-bebas-neue: 'Bebas Neue', sans-serif;
+  --font-dm-sans: 'DM Sans', sans-serif;
+}
+
+body {
+  background-color: #000000;
+  color: #ffffff;
+  font-family: var(--font-dm-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6, .headline {
+  font-family: var(--font-bebas-neue);
+  text-transform: uppercase;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+}
+
+@layer utilities {
+  .fade-up {
+    animation: fadeUp 0.9s ease both;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Custom Grid Background */
+.bg-grid {
+  background-image: linear-gradient(#0d0d0d 1px, transparent 1px),
+    linear-gradient(90deg, #0d0d0d 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(circle at center, black, transparent 80%);
+}
+
+/* Buttons */
+.btn-filled {
+  @apply bg-white text-black font-headline text-[11px] uppercase tracking-[2px] px-[30px] py-[13px] rounded-none hover:bg-gray-200 transition-colors;
+}
+
+.btn-ghost {
+  @apply bg-transparent text-white border border-[#1a1a1a] font-headline text-[11px] uppercase tracking-[2px] px-[30px] py-[13px] rounded-none hover:bg-white/5 transition-colors;
+}
+
+/* Section Dividers */
+.section-divider {
+  @apply border-t border-subtle;
+}

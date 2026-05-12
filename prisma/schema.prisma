@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  name              String?
+  passwordHash      String?
+  emailVerified     DateTime?
+  planTier          PlanTier  @default(FREE)
+  onboardingDone    Boolean   @default(false)
+  timezone          String    @default("Asia/Kolkata")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  accounts          Account[]
+  sessions          Session[]
+  memories          Memory[]
+  people            Person[]
+  dailySummaries    DailySummary[]
+  lifeReviews       LifeReview[]
+  notifications     Notification[]
+  subscriptions     Subscription[]
+  referrals         Referral[]      @relation("ReferredBy")
+  referredUsers     Referral[]      @relation("ReferredUser")
+  connectedSources  ConnectedSource[]
+  upcomingEvents    UpcomingEvent[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  access_token      String? @db.Text
+  refresh_token     String? @db.Text
+  expires_at        Int?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  @@unique([identifier, token])
+}
+
+model Memory {
+  id               String       @id @default(cuid())
+  userId           String
+  rawContent       String       @db.Text
+  summary          String
+  sourceType       SourceType
+  sourceId         String?
+  timestampOriginal DateTime
+  timestampIngested DateTime     @default(now())
+  emotionalTone    EmotionalTone @default(NEUTRAL)
+  importanceScore  Float         @default(5)
+  topics           String[]
+  memoryType       MemoryType   @default(CONVERSATION)
+  isPromise        Boolean      @default(false)
+  promiseTo        String?
+  promiseFulfilled Boolean?
+  inferredDueDate  DateTime?
+  location         String?
+  wordCount        Int          @default(0)
+  searchVector     Unsupported("tsvector")?
+
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  peopleMentioned  MemoryPerson[]
+  connections      MemoryConnection[] @relation("MemoryA")
+  connectedFrom    MemoryConnection[] @relation("MemoryB")
+
+  @@index([userId])
+  @@index([timestampOriginal])
+  @@index([sourceType])
+  @@index([emotionalTone])
+  @@index([isPromise])
+  @@index([importanceScore])
+}
+
+model Person {
+  id                  String    @id @default(cuid())
+  userId              String
+  name                String
+  nickname            String?
+  relationshipType    RelationshipType @default(UNKNOWN)
+  firstMetDate        DateTime?
+  firstMetContext     String?
+  birthday            DateTime?
+  whatTheyCarAbout    String?
+  relationshipHealth  Float     @default(5)
+  avatarColor         String    @default("#1a1a1a")
+  lastInteractionDate DateTime?
+  interactionCount    Int       @default(0)
+  notes               String?   @db.Text
+
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memories            MemoryPerson[]
+  upcomingEvents      EventAttendee[]
+}
+
+model MemoryPerson {
+  memoryId  String
+  personId  String
+  memory    Memory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+  person    Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  @@id([memoryId, personId])
+}
+
+model MemoryConnection {
+  id               String         @id @default(cuid())
+  memoryAId        String
+  memoryBId        String
+  connectionType   ConnectionType
+  connectionStrength Float         @default(0.5)
+  memoryA          Memory         @relation("MemoryA", fields: [memoryAId], references: [id], onDelete: Cascade)
+  memoryB          Memory         @relation("MemoryB", fields: [memoryBId], references: [id], onDelete: Cascade)
+}
+
+model DailySummary {
+  id              String    @id @default(cuid())
+  userId          String
+  date            DateTime  @db.Date
+  dominantEmotion EmotionalTone
+  memoryCount     Int
+  topTopics       String[]
+  aiSummary       String    @db.Text
+  importanceScore Float
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, date])
+}
+
+model LifeReview {
+  id              String   @id @default(cuid())
+  userId          String
+  weekStartDate   DateTime @db.Date
+  emotionArc      Json
+  patterns        Json
+  promiseAudit    Json
+  mirrorInsight   String   @db.Text
+  emailSentAt     DateTime?
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, read])
+}
+
+model ConnectedSource {
+  id           String     @id @default(cuid())
+  userId       String
+  sourceType   SourceType
+  accessToken  String?    @db.Text
+  refreshToken String?    @db.Text
+  expiresAt    DateTime?
+  memoryCount  Int        @default(0)
+  lastSyncAt   DateTime?
+  status       String     @default("active")
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, sourceType])
+}
+
+model UpcomingEvent {
+  id             String          @id @default(cuid())
+  userId         String
+  title          String
+  description    String?         @db.Text
+  startTime      DateTime
+  endTime        DateTime?
+  location       String?
+  videoCallLink  String?
+  briefGenerated Boolean         @default(false)
+  briefContent   String?         @db.Text
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attendees      EventAttendee[]
+}
+
+model EventAttendee {
+  eventId  String
+  personId String
+  event    UpcomingEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  person   Person        @relation(fields: [personId], references: [id], onDelete: Cascade)
+  @@id([eventId, personId])
+}
+
+model Subscription {
+  id                 String   @id @default(cuid())
+  userId             String
+  stripeCustomerId   String?  @unique
+  stripeSubId        String?  @unique
+  razorpaySubId      String?
+  planTier           PlanTier
+  status             String   @default("active")
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean  @default(false)
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Referral {
+  id           String   @id @default(cuid())
+  referrerId   String
+  referredId   String   @unique
+  rewardGiven  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  referrer     User     @relation("ReferredBy", fields: [referrerId], references: [id])
+  referred     User     @relation("ReferredUser", fields: [referredId], references: [id])
+}
+
+enum PlanTier { FREE PERSONAL PRO TEAMS ENTERPRISE }
+enum SourceType { GMAIL WHATSAPP CALENDAR IMESSAGE SLACK NOTION LINKEDIN TWITTER VOICE MANUAL }
+enum EmotionalTone { POSITIVE NEGATIVE NEUTRAL ANXIOUS EXCITED SAD ANGRY }
+enum MemoryType { DECISION CONVERSATION EVENT COMMITMENT EMOTION LEARNING PROMISE }
+enum RelationshipType { FRIEND FAMILY COLLEAGUE CLIENT ROMANTIC UNKNOWN }
+enum ConnectionType { SAME_PERSON SAME_TOPIC SAME_EMOTION FOLLOW_UP CONTRADICTION }
+enum NotificationType { MORNING_BRIEF PROMISE_NUDGE MEETING_BRIEF PATTERN_INSIGHT MEMORY_RESURFACED WEEKLY_REVIEW }
