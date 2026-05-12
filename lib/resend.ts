@@ -2,9 +2,12 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// Use onboarding@resend.dev if you haven't verified your domain yet
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+
 export async function sendMagicLink(email: string, url: string) {
   await resend.emails.send({
-    from: 'MemoryOS <noreply@memoryos.app>',
+    from: `MemoryOS <${FROM_EMAIL}>`,
     to: email,
     subject: 'Access your MemoryOS vault',
     html: `
@@ -19,7 +22,7 @@ export async function sendMagicLink(email: string, url: string) {
 
 export async function sendWeeklyReview(email: string, review: any) {
   await resend.emails.send({
-    from: 'MemoryOS <noreply@memoryos.app>',
+    from: `MemoryOS <${FROM_EMAIL}>`,
     to: email,
     subject: 'Your Weekly Memory Review',
     html: `

@@ -24,10 +24,30 @@ export default function MemoryCard({
 }: MemoryCardProps) {
   const getSourceIcon = (s: string) => {
     switch (s) {
-      case "GMAIL": return "✉";
-      case "WHATSAPP": return "💬";
-      case "CALENDAR": return "📅";
-      default: return "●";
+      case "GMAIL":
+        return (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="3" width="12" height="8" rx="1" stroke="currentColor" strokeWidth="1" />
+            <path d="M1 4L7 8.5L13 4" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
+          </svg>
+        );
+      case "WHATSAPP":
+        return (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 12L3.25 8.25C2.5 7.25 2.25 6 2.5 4.75C2.75 3.5 3.5 2.5 4.5 1.75C5.5 1 6.75 0.75 8 1C9.25 1.25 10.25 2 11 3C11.75 4 12 5.25 11.75 6.5C11.5 7.75 10.75 8.75 9.75 9.5C8.75 10.25 7.5 10.5 6.25 10.25L2 12Z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
+          </svg>
+        );
+      case "CALENDAR":
+        return (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1.5" y="3" width="11" height="9" rx="1" stroke="currentColor" strokeWidth="1" />
+            <line x1="1.5" y1="6" x2="12.5" y2="6" stroke="currentColor" strokeWidth="1" />
+            <line x1="4.5" y1="1.5" x2="4.5" y2="4" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+            <line x1="9.5" y1="1.5" x2="9.5" y2="4" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+          </svg>
+        );
+      default:
+        return <span className="text-[10px]">●</span>;
     }
   };
 

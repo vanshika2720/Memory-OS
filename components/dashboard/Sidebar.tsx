@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/store";
+import { CircleIcon } from "@/components/ui/CircleIcon";
 
 const NAV_ITEMS = [
   { name: "TIMELINE", href: "/dashboard/timeline" },
@@ -40,13 +41,14 @@ export default function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "px-8 py-4 text-[11px] font-headline uppercase tracking-[2px] transition-all border-l-2",
+                "px-8 py-4 text-[11px] font-headline uppercase tracking-[2px] transition-all border-l-2 flex items-center justify-between group",
                 isActive 
                   ? "text-white border-white bg-white/5" 
                   : "text-[#222] border-transparent hover:text-[#555]"
               )}
             >
               {item.name}
+              {isActive && <CircleIcon className="w-2.5 h-2.5 text-white" />}
             </Link>
           );
         })}

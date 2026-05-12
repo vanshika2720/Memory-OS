@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { CircleIcon } from "@/components/ui/CircleIcon";
 
 export default function BrandStatement() {
   return (
@@ -15,29 +16,29 @@ export default function BrandStatement() {
             <div className="space-y-4">
               <span className="font-headline text-[11px] tracking-[2px] uppercase text-white">Product</span>
               <ul className="space-y-2 text-secondary text-[14px]">
-                <li><a href="#" className="hover:text-white transition-colors">Timeline</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Ask AI</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">People</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Insights</a></li>
+                <li><a href="#" className="hover:text-white transition-colors flex items-center gap-2 group">Timeline <CircleIcon className="w-2 h-2 opacity-0 group-hover:opacity-100 transition-opacity" /></a></li>
+                <li><a href="#" className="hover:text-white transition-colors flex items-center gap-2 group">Ask AI <CircleIcon className="w-2 h-2 opacity-0 group-hover:opacity-100 transition-opacity" /></a></li>
+                <li><a href="#" className="hover:text-white transition-colors flex items-center gap-2 group">People <CircleIcon className="w-2 h-2 opacity-0 group-hover:opacity-100 transition-opacity" /></a></li>
+                <li><a href="#" className="hover:text-white transition-colors flex items-center gap-2 group">Insights <CircleIcon className="w-2 h-2 opacity-0 group-hover:opacity-100 transition-opacity" /></a></li>
               </ul>
             </div>
             
             <div className="space-y-4">
               <span className="font-headline text-[11px] tracking-[2px] uppercase text-white">Company</span>
               <ul className="space-y-2 text-secondary text-[14px]">
-                <li><a href="#" className="hover:text-white transition-colors">About</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Security</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Privacy</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Terms</a></li>
+                <li><a href="#" className="hover:text-white transition-colors flex items-center gap-2 group">About <CircleIcon className="w-2 h-2 opacity-0 group-hover:opacity-100 transition-opacity" /></a></li>
+                <li><a href="#" className="hover:text-white transition-colors flex items-center gap-2 group">Security <CircleIcon className="w-2 h-2 opacity-0 group-hover:opacity-100 transition-opacity" /></a></li>
+                <li><a href="#" className="hover:text-white transition-colors flex items-center gap-2 group">Privacy <CircleIcon className="w-2 h-2 opacity-0 group-hover:opacity-100 transition-opacity" /></a></li>
+                <li><a href="#" className="hover:text-white transition-colors flex items-center gap-2 group">Terms <CircleIcon className="w-2 h-2 opacity-0 group-hover:opacity-100 transition-opacity" /></a></li>
               </ul>
             </div>
             
             <div className="space-y-4">
               <span className="font-headline text-[11px] tracking-[2px] uppercase text-white">Social</span>
               <ul className="space-y-2 text-secondary text-[14px]">
-                <li><a href="#" className="hover:text-white transition-colors">Twitter</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">LinkedIn</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Instagram</a></li>
+                <li><a href="#" className="hover:text-white transition-colors flex items-center gap-2 group">Twitter <CircleIcon className="w-2 h-2 opacity-0 group-hover:opacity-100 transition-opacity" /></a></li>
+                <li><a href="#" className="hover:text-white transition-colors flex items-center gap-2 group">LinkedIn <CircleIcon className="w-2 h-2 opacity-0 group-hover:opacity-100 transition-opacity" /></a></li>
+                <li><a href="#" className="hover:text-white transition-colors flex items-center gap-2 group">Instagram <CircleIcon className="w-2 h-2 opacity-0 group-hover:opacity-100 transition-opacity" /></a></li>
               </ul>
             </div>
             
@@ -51,7 +52,9 @@ export default function BrandStatement() {
                     placeholder="EMAIL" 
                     className="bg-transparent px-4 py-2 text-[11px] w-full focus:outline-none" 
                   />
-                  <button className="bg-white text-black font-headline text-[11px] px-4 py-2">JOIN</button>
+                  <button className="bg-white text-black font-headline text-[11px] px-4 py-2 flex items-center gap-2">
+                    JOIN <CircleIcon className="w-2.5 h-2.5" />
+                  </button>
                 </div>
               </div>
             </div>
