@@ -52,11 +52,12 @@ export default function MemoryCard({
   };
 
   return (
-    <div className="group bg-black p-6 flex items-start gap-8 transition-all hover:bg-[#050505] cursor-pointer">
+    <div className="group bg-black p-6 flex items-start gap-8 transition-all duration-500 hover:bg-[#050505] hover:-translate-y-0.5 hover:scale-[1.005] cursor-pointer">
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none border border-white/5" />
       {/* Left: Source icon + time */}
       <div className="w-24 flex flex-col gap-1 shrink-0">
         <div className="flex items-center gap-2 font-body text-[13px] text-white">
-          <span className="opacity-50">{getSourceIcon(source)}</span>
+          <span className="opacity-50 group-hover:opacity-100 transition-opacity duration-500">{getSourceIcon(source)}</span>
           <span className="font-headline text-[11px] tracking-[1px]">{source}</span>
         </div>
         <span className="text-[10px] text-[#333] font-headline tracking-[1px]">{time}</span>

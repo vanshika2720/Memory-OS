@@ -1,19 +1,138 @@
 "use client";
 
-import React, { useState } from "react";
-import { useStore } from "@/store";
+import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-const SOURCES = [
-  { name: "GMAIL", count: 847, lastSync: "12 min ago", connected: true },
-  { name: "WHATSAPP", count: 1242, lastSync: "2 hours ago", connected: true },
-  { name: "CALENDAR", count: 156, lastSync: "Yesterday", connected: true },
-  { name: "LINKEDIN", count: 0, lastSync: "Never", connected: false },
-  { name: "TWITTER", count: 0, lastSync: "Never", connected: false },
+type ConnectedSource = {
+  sourceType: string;
+  memoryCount: number;
+  lastSyncAt: string | null;
+  status: string;
+};
+
+type IngestStatusPayload = {
+  processed: number;
+  extracted: number;
+  people: number;
+  status: string;
+  sources: Array<{
+    sourceType: string;
+    memoryCount: number;
+    lastSyncAt: string | null;
+    statusText: string;
+  }>;
+};
+
+const SOURCE_DEFS: Array<{ sourceType: string; label: string }> = [
+  { sourceType: "GMAIL", label: "GMAIL" },
+  { sourceType: "WHATSAPP", label: "WHATSAPP" },
+  { sourceType: "CALENDAR", label: "CALENDAR" },
+  { sourceType: "LINKEDIN", label: "LINKEDIN" },
+  { sourceType: "TWITTER", label: "TWITTER" },
 ];
 
+function formatRelative(date: string | null) {
+  if (!date) return "Never";
+  const t = new Date(date).getTime();
+  if (!Number.isFinite(t)) return "Never";
+  const diffMs = Date.now() - t;
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 48) return `${hours} hours ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} days ago`;
+}
+
 export default function ConnectionsPage() {
+  const router = useRouter();
+
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [connectedSources, setConnectedSources] = useState<ConnectedSource[]>([]);
   const [isIngesting, setIsIngesting] = useState(false);
+  const [ingestStatus, setIngestStatus] = useState<IngestStatusPayload | null>(null);
+
+  const connectedByType = useMemo(() => {
+    const map = new Map<string, ConnectedSource>();
+    for (const s of connectedSources) map.set(s.sourceType, s);
+    return map;
+  }, [connectedSources]);
+
+  useEffect(() => {
+    const load = async () => {
+      const [sourcesRes, meRes] = await Promise.allSettled([
+        fetch("/api/user/connected-sources"),
+        fetch("/api/user/me"),
+      ]);
+
+      if (sourcesRes.status === "fulfilled" && sourcesRes.value.ok) {
+        const data = (await sourcesRes.value.json()) as { sources: ConnectedSource[] } | any;
+        setConnectedSources(data?.sources ?? []);
+      }
+
+      if (meRes.status === "fulfilled" && meRes.value.ok) {
+        const me = await meRes.value.json();
+        setPrivacyAccepted(Boolean(me?.privacyAccepted));
+      }
+    };
+    load();
+  }, []);
+
+  useEffect(() => {
+    if (!isIngesting) return;
+
+    const es = new EventSource("/api/ingest/status");
+    es.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data) as IngestStatusPayload;
+        setIngestStatus(data);
+        setConnectedSources(
+          (data.sources || []).map((s) => ({
+            sourceType: s.sourceType,
+            memoryCount: s.memoryCount,
+            lastSyncAt: s.lastSyncAt,
+            status: s.statusText,
+          })),
+        );
+      } catch {
+        // ignore
+      }
+    };
+
+    es.onerror = () => {
+      es.close();
+      setIsIngesting(false);
+    };
+
+    return () => {
+      es.close();
+    };
+  }, [isIngesting]);
+
+  const syncNow = async (sourceType: string) => {
+    if (!privacyAccepted) {
+      router.push("/dashboard/settings/privacy");
+      return;
+    }
+
+    try {
+      await fetch("/api/ingest/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceType }),
+      });
+      setIsIngesting(true);
+      setIngestStatus(null);
+    } catch {
+      // ignore
+    }
+  };
+
+  const onConnectClick = async (sourceType: string) => {
+    await syncNow(sourceType);
+  };
 
   return (
     <div className="p-8 md:p-12 ml-[220px] space-y-16">
@@ -29,13 +148,17 @@ export default function ConnectionsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-[#111] border border-[#111]">
-        {SOURCES.map((source) => (
-          <div key={source.name} className="p-12 bg-black space-y-12 group hover:bg-[#050505] transition-all">
+        {SOURCE_DEFS.map((def) => {
+          const src = connectedByType.get(def.sourceType);
+          const isConnected = Boolean(src);
+
+          return (
+            <div key={def.sourceType} className="p-12 bg-black space-y-12 group hover:bg-[#050505] transition-all">
             <div className="flex justify-between items-start">
               <h2 className="font-headline text-[28px] tracking-[-1px] uppercase text-white group-hover:tracking-[1px] transition-all">
-                {source.name}
+                {def.label}
               </h2>
-              {source.connected && (
+              {isConnected && (
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-white rounded-full animate-blink" />
                   <span className="font-headline text-[10px] text-white tracking-[1px]">LIVE</span>
@@ -45,27 +168,43 @@ export default function ConnectionsPage() {
 
             <div className="space-y-1">
               <span className="text-[11px] font-headline uppercase tracking-[2px] text-[#222]">
-                {source.connected ? `CONNECTED — ${source.count} MEMORIES` : "NOT CONNECTED"}
+                {isConnected ? `CONNECTED — ${src!.memoryCount} MEMORIES` : "NOT CONNECTED"}
               </span>
               <p className="text-[10px] text-[#111] font-headline uppercase tracking-[1px]">
-                LAST SYNCED {source.lastSync}
+                LAST SYNCED {isConnected ? formatRelative(src!.lastSyncAt) : "Never"}
               </p>
             </div>
 
             <button 
-              onClick={() => source.connected ? setIsIngesting(true) : null}
+              onClick={() => (isConnected ? syncNow(def.sourceType) : onConnectClick(def.sourceType))}
               className={cn(
                 "w-full py-4 font-headline text-[11px] tracking-[2px] uppercase transition-all",
-                source.connected 
+                isConnected 
                   ? "border border-[#111] text-[#333] hover:text-white hover:border-[#333]" 
                   : "bg-white text-black hover:bg-opacity-90"
               )}
             >
-              {source.connected ? "SYNC NOW —" : "CONNECT SOURCE —"}
+              {isConnected ? "SYNC NOW —" : "CONNECT SOURCE —"}
             </button>
           </div>
-        ))}
+          );
+        })}
       </div>
+
+      {!privacyAccepted && (
+        <div className="max-w-3xl p-4 border border-[#111] bg-[#050505]">
+          <div className="font-headline text-[12px] uppercase tracking-[2px] text-white">Privacy consent required</div>
+          <div className="text-[12px] text-[#aaa] mt-2 font-body leading-relaxed">
+            To connect or sync sources, you must accept the privacy questions in <span className="text-white">Settings → Privacy</span>.
+          </div>
+          <button
+            onClick={() => router.push("/dashboard/settings/privacy")}
+            className="mt-4 px-4 py-3 border border-white text-white font-headline text-[11px] tracking-[2px] uppercase hover:bg-white hover:text-black transition-all"
+          >
+            Open Privacy
+          </button>
+        </div>
+      )}
 
       {/* Ingestion Overlay */}
       {isIngesting && (
@@ -91,17 +230,24 @@ export default function ConnectionsPage() {
                 />
               </svg>
               <div className="text-center">
-                <div className="font-headline text-[80px] text-white tabular-nums">847</div>
+                <div className="font-headline text-[80px] text-white tabular-nums">
+                  {ingestStatus?.processed ?? 0}
+                </div>
                 <div className="font-headline text-[11px] text-[#333] tracking-[2px] uppercase">Memories</div>
               </div>
             </div>
 
             <div className="max-w-md w-full h-32 overflow-hidden relative">
               <div className="absolute bottom-0 left-0 right-0 space-y-2 animate-in slide-in-from-bottom-full duration-1000">
-                {["Analyzing Gmail...", "Extracted 12 promises", "Identified Sarah Jenkins", "Syncing connections..."].map((log, i) => (
-                  <div key={i} className="flex items-center gap-4 text-[#333] font-headline text-[11px] tracking-[1px] uppercase">
+                {(ingestStatus?.sources ?? []).slice(0, 4).map((s) => (
+                  <div
+                    key={s.sourceType}
+                    className="flex items-center gap-4 text-[#333] font-headline text-[11px] tracking-[1px] uppercase"
+                  >
                     <span className="opacity-50">✉</span>
-                    <span>{log}</span>
+                    <span>
+                      {s.statusText?.toUpperCase?.() ?? "ACTIVE"} — {s.sourceType}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -112,11 +258,15 @@ export default function ConnectionsPage() {
             <div className="flex gap-12">
               <div className="space-y-1">
                 <span className="text-[10px] text-[#222] font-headline uppercase tracking-[2px]">Processed</span>
-                <div className="font-headline text-white">2,412 Emails</div>
+                <div className="font-headline text-white tabular-nums">
+                  {ingestStatus?.processed ?? 0} Memories
+                </div>
               </div>
               <div className="space-y-1">
                 <span className="text-[10px] text-[#222] font-headline uppercase tracking-[2px]">Identified</span>
-                <div className="font-headline text-white">124 People</div>
+                <div className="font-headline text-white tabular-nums">
+                  {ingestStatus?.people ?? 0} People
+                </div>
               </div>
             </div>
             <button 

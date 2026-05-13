@@ -2,7 +2,6 @@
 
 import React from "react";
 import { Button } from "@/components/ui/Button";
-import { CircleIcon } from "@/components/ui/CircleIcon";
 
 function AppleLogo() {
   return (
@@ -16,9 +15,12 @@ function AppleLogo() {
 function AndroidIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M5 10V17M19 10V17M3 17H21M8 10C8 7 10 5 12 5C14 5 16 7 16 10M8 17V20M16 17V20M12 10V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <circle cx="9" cy="7" r="1" fill="currentColor" />
-      <circle cx="15" cy="7" r="1" fill="currentColor" />
+      <rect x="4" y="5" width="16" height="13" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M4 10H20" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="4" y1="18" x2="4" y2="21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="20" y1="18" x2="20" y2="21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="9" y1="5" x2="9" y2="3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="15" y1="5" x2="15" y2="3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
 }
@@ -53,7 +55,6 @@ export default function InstallSection() {
                 </span>
                 Download for iOS
               </div>
-              <CircleIcon className="w-3 h-3 text-tertiary group-hover:text-white transition-colors" />
             </Button>
             <Button variant="ghost" className="justify-between px-8 py-6 group">
               <div className="flex items-center gap-4">
@@ -62,7 +63,6 @@ export default function InstallSection() {
                 </span>
                 Download for Android
               </div>
-              <CircleIcon className="w-3 h-3 text-tertiary group-hover:text-white transition-colors" />
             </Button>
             <Button variant="ghost" className="justify-between px-8 py-6 group">
               <div className="flex items-center gap-4">
@@ -71,7 +71,6 @@ export default function InstallSection() {
                 </span>
                 Desktop Companion
               </div>
-              <CircleIcon className="w-3 h-3 text-tertiary group-hover:text-white transition-colors" />
             </Button>
           </div>
         </div>

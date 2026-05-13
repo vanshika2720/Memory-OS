@@ -146,10 +146,11 @@ export default function AppsSection() {
         {Object.entries(APP_ICONS).map(([name, icon]) => (
           <div
             key={name}
-            className="group relative h-48 border-r border-b border-subtle flex flex-col items-center justify-center gap-4 transition-colors hover:bg-[#050505] overflow-hidden"
+            className="group relative h-48 border-r border-b border-subtle flex flex-col items-center justify-center gap-4 transition-all duration-500 hover:bg-[#050505] hover:-translate-y-1 hover:scale-[1.02] overflow-hidden"
           >
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none bg-[radial-gradient(circle_at_var(--mouse-x)_var(--mouse-y),rgba(255,255,255,0.05)_0%,transparent_70%)]" />
-            <span className="text-white/60 group-hover:text-white transition-all duration-500">
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-[radial-gradient(circle_at_var(--mouse-x)_var(--mouse-y),rgba(255,255,255,0.08)_0%,transparent_70%)]" />
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none border border-white/10" />
+            <span className="text-white/60 group-hover:text-white transition-all duration-500 group-hover:scale-110">
               {icon}
             </span>
             <span className="font-headline text-[11px] tracking-[2px] uppercase text-tertiary group-hover:text-white transition-colors">

@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { X, Loader2 } from "lucide-react";
 import { signIn } from "next-auth/react";
 import { CircleIcon } from "@/components/ui/CircleIcon";
 
-type AuthStep = "email" | "password" | "magicLinkSent" | "otp";
+type AuthStep = "email" | "otp" | "password" | "magicLinkSent";
 
 export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [email, setEmail] = useState("");
@@ -16,8 +16,18 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [otpCode, setOtpCode] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [otpExists, setOtpExists] = useState(false);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setInterval(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearInterval(t);
+  }, [resendCooldown]);
 
   if (!isOpen) return null;
+
+  const cleanEmail = () => email.trim().toLowerCase();
 
   const resetState = () => {
     setEmail("");
@@ -26,6 +36,8 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
     setIsLoading(false);
     setError("");
     setOtpCode("");
+    setResendCooldown(0);
+    setOtpExists(false);
   };
 
   const handleClose = () => {
@@ -33,16 +45,112 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
     onClose();
   };
 
-  const sendMagicLink = async () => {
-    if (!email) return;
+  const sendOtp = async () => {
+    const e = cleanEmail();
+    if (!e) return;
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/auth/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: e }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        setError("Failed to send code. Please try again.");
+      } else {
+        setOtpExists(data.exists || false);
+        setStep("otp");
+        setResendCooldown(30);
+      }
+    } catch {
+      setError("An unexpected error occurred.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGetStarted = () => sendOtp();
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const ec = cleanEmail();
+    if (!ec || !otpCode) return;
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/auth/otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: ec, code: otpCode }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.error || "Invalid or expired code.");
+      } else {
+        const result = await signIn("credentials", {
+          email: ec,
+          otpToken: data.otpToken,
+          redirect: false,
+          callbackUrl: "/dashboard/timeline",
+        });
+
+        if (result?.error) {
+          setError("Failed to sign in. Please try again.");
+        } else {
+          window.location.href = "/dashboard/timeline";
+        }
+      }
+    } catch {
+      setError("An unexpected error occurred.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const ec = cleanEmail();
+    if (!ec || !password) return;
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const result = await signIn("credentials", {
+        email: ec,
+        password,
+        redirect: false,
+        callbackUrl: "/dashboard/timeline",
+      });
+
+      if (result?.error) {
+        setError("Invalid email or password.");
+      } else {
+        window.location.href = "/dashboard/timeline";
+      }
+    } catch {
+      setError("An unexpected error occurred.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSendMagicLink = async () => {
+    const ec = cleanEmail();
+    if (!ec) return;
     setIsLoading(true);
     setError("");
 
     try {
       const result = await signIn("email", {
-        email,
+        email: ec,
         redirect: false,
-        callbackUrl: "/dashboard",
+        callbackUrl: "/dashboard/timeline",
       });
 
       if (result?.error) {
@@ -57,93 +165,13 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
     }
   };
 
-  const handlePasswordLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) return;
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-        callbackUrl: "/dashboard",
-      });
-
-      if (result?.error) {
-        setError("Invalid email or password.");
-      } else {
-        window.location.href = "/dashboard";
-      }
-    } catch {
-      setError("An unexpected error occurred.");
-    } finally {
-      setIsLoading(false);
+  const handleEmailKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && email.trim()) {
+      handleGetStarted();
     }
   };
 
-  const handleSendOtp = async () => {
-    if (!email) return;
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const res = await fetch("/api/auth/otp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await res.json();
-      if (!data.success) {
-        setError("Failed to send code. Please try again.");
-      } else {
-        setStep("otp");
-      }
-    } catch {
-      setError("An unexpected error occurred.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !otpCode) return;
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const res = await fetch("/api/auth/otp/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code: otpCode }),
-      });
-
-      const data = await res.json();
-      if (!data.success) {
-        setError("Invalid or expired code.");
-      } else {
-        const result = await signIn("credentials", {
-          email,
-          otpToken: data.otpToken,
-          redirect: false,
-          callbackUrl: "/dashboard",
-        });
-
-        if (result?.error) {
-          setError("Failed to sign in. Please try again.");
-        } else {
-          window.location.href = "/dashboard";
-        }
-      }
-    } catch {
-      setError("An unexpected error occurred.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const btnGhost = "w-full border border-[#1a1a1a] bg-transparent text-white font-headline text-[11px] uppercase tracking-[2px] px-[30px] py-[13px] hover:bg-white/5 transition-colors";
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm">
@@ -160,7 +188,11 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
             Access your vault.
           </h2>
           <p className="text-secondary text-[14px]">
-            {step === "magicLinkSent"
+            {step === "otp"
+              ? otpExists
+                ? "A code was already sent. Enter it below."
+                : `Enter the code sent to ${cleanEmail()}`
+              : step === "magicLinkSent"
               ? "Check your inbox for the magic link."
               : "Enter your email to get started."}
           </p>
@@ -175,13 +207,14 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
                 placeholder="YOUR@EMAIL.COM"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={handleEmailKeyDown}
                 required
                 className="bg-transparent border-subtle focus:border-white text-white"
               />
               {error && <p className="text-red-500 text-[12px] uppercase tracking-[1px] font-headline">{error}</p>}
             </div>
 
-            <Button onClick={sendMagicLink} className="w-full flex items-center justify-center gap-2" disabled={isLoading}>
+            <Button onClick={handleGetStarted} className="w-full flex items-center justify-center gap-2" disabled={isLoading || !email.trim()}>
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
@@ -189,35 +222,71 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
               )}
             </Button>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-subtle" />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="bg-black px-4 text-[11px] font-headline tracking-[2px] uppercase text-tertiary">or</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <Button
+            <div className="text-center">
+              <button
                 type="button"
-                variant="ghost"
                 onClick={() => setStep("password")}
-                className="w-full justify-center"
+                className="font-headline text-[11px] tracking-[2px] uppercase text-tertiary hover:text-white transition-colors"
               >
-                Login with Password
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleSendOtp}
-                disabled={isLoading}
-                className="w-full justify-center"
-              >
-                Send Verification Code
-              </Button>
+                Login with password
+              </button>
             </div>
           </div>
+        )}
+
+        {step === "otp" && (
+          <form onSubmit={handleVerifyOtp} className="space-y-6">
+            <div className="space-y-4">
+              <span className="font-headline text-[11px] tracking-[2px] uppercase text-tertiary">
+                Verification code
+              </span>
+              <Input
+                type="text"
+                placeholder="000000"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                required
+                className="bg-transparent border-subtle focus:border-white text-white text-center text-2xl tracking-[8px]"
+                autoFocus
+              />
+              {error && <p className="text-red-500 text-[12px] uppercase tracking-[1px] font-headline">{error}</p>}
+            </div>
+
+            <Button type="submit" className="w-full flex items-center justify-center gap-2" disabled={isLoading || otpCode.length !== 6}>
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>Verify <CircleIcon className="w-3 h-3" /></>
+              )}
+            </Button>
+
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => sendOtp()}
+                disabled={isLoading || resendCooldown > 0}
+                className={btnGhost + " disabled:opacity-30"}
+              >
+                {resendCooldown > 0 ? `Resend code (${resendCooldown}s)` : "Resend code"}
+              </button>
+              <button
+                type="button"
+                onClick={handleSendMagicLink}
+                disabled={isLoading}
+                className={btnGhost}
+              >
+                Send magic link instead
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep("email")}
+                className={btnGhost}
+              >
+                Back
+              </button>
+            </div>
+          </form>
         )}
 
         {step === "password" && (
@@ -253,79 +322,22 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
               )}
             </Button>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-subtle" />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="bg-black px-4 text-[11px] font-headline tracking-[2px] uppercase text-tertiary">or</span>
-              </div>
-            </div>
-
             <div className="flex flex-col gap-3">
-              <Button
+              <button
                 type="button"
-                variant="ghost"
-                onClick={sendMagicLink}
+                onClick={handleSendMagicLink}
                 disabled={isLoading}
-                className="w-full justify-center"
+                className={btnGhost}
               >
-                Send Magic Link Instead
-              </Button>
-              <Button
+                Send magic link instead
+              </button>
+              <button
                 type="button"
-                variant="ghost"
-                onClick={handleSendOtp}
-                disabled={isLoading}
-                className="w-full justify-center"
-              >
-                Send Verification Code
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
                 onClick={() => setStep("email")}
-                className="w-full justify-center"
+                className={btnGhost}
               >
                 Back
-              </Button>
-            </div>
-          </form>
-        )}
-
-        {step === "otp" && (
-          <form onSubmit={handleVerifyOtp} className="space-y-6">
-            <div className="space-y-4">
-              <span className="font-headline text-[11px] tracking-[2px] uppercase text-tertiary">
-                Enter the 6-digit code sent to {email}
-              </span>
-              <Input
-                type="text"
-                placeholder="000000"
-                maxLength={6}
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                required
-                className="bg-transparent border-subtle focus:border-white text-white text-center text-2xl tracking-[8px]"
-              />
-              {error && <p className="text-red-500 text-[12px] uppercase tracking-[1px] font-headline">{error}</p>}
-            </div>
-
-            <Button type="submit" className="w-full flex items-center justify-center gap-2" disabled={isLoading || otpCode.length !== 6}>
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>Verify <CircleIcon className="w-3 h-3" /></>
-              )}
-            </Button>
-
-            <div className="flex flex-col gap-3">
-              <Button type="button" variant="ghost" onClick={handleSendOtp} disabled={isLoading} className="w-full justify-center">
-                Resend Code
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => setStep("email")} className="w-full justify-center">
-                Back
-              </Button>
+              </button>
             </div>
           </form>
         )}
@@ -338,16 +350,23 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
             <div className="space-y-4">
               <h3 className="font-headline text-[24px] uppercase tracking-[-1px] text-white">Check your inbox.</h3>
               <p className="text-secondary text-[14px]">
-                We've sent a magic link to <span className="text-white">{email}</span>. Click it to enter your vault.
+                We've sent a magic link to <span className="text-white">{cleanEmail()}</span>. Click it to enter your vault.
               </p>
             </div>
             <div className="flex flex-col gap-3">
-              <Button onClick={sendMagicLink} variant="ghost" className="w-full" disabled={isLoading}>
-                Resend Magic Link
-              </Button>
-              <Button onClick={() => setStep("email")} variant="ghost" className="w-full">
+              <button
+                onClick={handleSendMagicLink}
+                disabled={isLoading}
+                className={btnGhost}
+              >
+                Resend magic link
+              </button>
+              <button
+                onClick={() => setStep("email")}
+                className={btnGhost}
+              >
                 Back to login
-              </Button>
+              </button>
             </div>
           </div>
         )}

@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
-import { generateOtp, storeOtp } from "@/lib/otp";
+import { generateOtp, storeOtp, hasValidOtp } from "@/lib/otp";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+
+function getResend(): Resend | null {
+  if (!process.env.RESEND_API_KEY) return null;
+  try {
+    return new Resend(process.env.RESEND_API_KEY);
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(req: Request) {
   try {
@@ -12,12 +20,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
+    if (hasValidOtp(email)) {
+      return NextResponse.json({ success: true, exists: true });
+    }
+
     const code = generateOtp();
     storeOtp(email, code);
 
     console.log(`[OTP] Code for ${email}: ${code}`);
 
-    if (process.env.RESEND_API_KEY) {
+    const resend = getResend();
+    if (resend) {
       await resend.emails.send({
         from: `MemoryOS <${FROM_EMAIL}>`,
         to: email,
@@ -33,7 +46,7 @@ export async function POST(req: Request) {
       });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, exists: false });
   } catch {
     return NextResponse.json({ error: "Failed to send OTP" }, { status: 500 });
   }

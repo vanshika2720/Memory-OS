@@ -11,9 +11,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email and code are required" }, { status: 400 });
     }
 
-    const valid = verifyOtp(email, code);
-    if (!valid) {
-      return NextResponse.json({ error: "Invalid or expired code" }, { status: 401 });
+    const result = verifyOtp(email, code);
+
+    if (!result.valid) {
+      const messages: Record<string, string> = {
+        no_code: "No code was sent to this email. Request a new one.",
+        expired: "Code expired. Request a new one.",
+        mismatch: "Incorrect code. Please try again.",
+      };
+      return NextResponse.json({
+        success: false,
+        error: messages[result.reason || "no_code"] || "Invalid or expired code",
+        reason: result.reason,
+      }, { status: 401 });
     }
 
     const otpToken = await new SignJWT({ email: email.toLowerCase(), type: "otp" })

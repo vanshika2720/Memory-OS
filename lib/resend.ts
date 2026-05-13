@@ -1,11 +1,22 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-// Use onboarding@resend.dev if you haven't verified your domain yet
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
+function getResend(): Resend | null {
+  if (!process.env.RESEND_API_KEY) return null;
+  try {
+    return new Resend(process.env.RESEND_API_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export async function sendMagicLink(email: string, url: string) {
+  const resend = getResend();
+  if (!resend) {
+    console.log(`[Magic Link] Would send to ${email}: ${url}`);
+    return;
+  }
   await resend.emails.send({
     from: `MemoryOS <${FROM_EMAIL}>`,
     to: email,
@@ -21,6 +32,8 @@ export async function sendMagicLink(email: string, url: string) {
 }
 
 export async function sendWeeklyReview(email: string, review: any) {
+  const resend = getResend();
+  if (!resend) return;
   await resend.emails.send({
     from: `MemoryOS <${FROM_EMAIL}>`,
     to: email,

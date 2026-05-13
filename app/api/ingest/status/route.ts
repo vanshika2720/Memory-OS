@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import prisma from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -11,23 +12,46 @@ export async function GET(req: NextRequest) {
   const stream = new ReadableStream({
     start(controller) {
       const encoder = new TextEncoder();
-      
-      // Simulate polling ingestion status
-      let processed = 0;
-      const interval = setInterval(() => {
-        processed += Math.floor(Math.random() * 50);
-        const data = JSON.stringify({
-          processed,
-          extracted: Math.floor(processed * 0.8),
-          people: Math.floor(processed * 0.1),
-          status: processed < 2412 ? "INGESTING" : "COMPLETE"
-        });
-        
-        controller.enqueue(encoder.encode(`data: ${data}\n\n`));
-        
-        if (processed >= 2412) {
-          clearInterval(interval);
-          controller.close();
+
+      const userId = (session.user as any).id as string;
+
+      const interval = setInterval(async () => {
+        try {
+          const [memoryCount, peopleCount, sources] = await Promise.all([
+            prisma.memory.count({ where: { userId } }),
+            prisma.person.count({ where: { userId } }),
+            prisma.connectedSource.findMany({
+              where: { userId },
+              select: {
+                sourceType: true,
+                memoryCount: true,
+                lastSyncAt: true,
+                status: true,
+              },
+              orderBy: { sourceType: "asc" },
+            }),
+          ]);
+
+          const isSyncing = sources.some((s) => String(s.status).toLowerCase().includes("sync"));
+
+          const status = sources.length === 0 ? "NO_CONNECTIONS" : isSyncing ? "SYNCING" : "ACTIVE";
+
+          const data = JSON.stringify({
+            processed: memoryCount,
+            extracted: memoryCount, // We don't have a separate "extracted" metric stored yet.
+            people: peopleCount,
+            status,
+            sources: sources.map((s) => ({
+              sourceType: s.sourceType,
+              memoryCount: s.memoryCount,
+              lastSyncAt: s.lastSyncAt,
+              statusText: s.status,
+            })),
+          });
+
+          controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+        } catch (e) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Failed to fetch ingestion status" })}\n\n`));
         }
       }, 1000);
 
